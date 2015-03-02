@@ -13,6 +13,13 @@ def	provision(user="vagrant",	group="vagrant"):
 	install_hadoop()
 	install_hbase()
 	install_spark()
+	install_python_modules()
+	
+def install_python_modules():
+	sudo("apt-get install -y python-pip")
+	sudo("pip install ipython")
+	sudo("pip install tweepy")
+	sudo("pip install happybase")	
 	
 def install_spark():
 	'''
@@ -35,12 +42,12 @@ def install_hbase():
 	'''
 	http://hbase.apache.org/book.html#quickstart
 	'''
-	if not exists("/usr/local/lib/hbase-1.0.0"):
+	if not exists("/usr/local/lib/hbase-0.98.10.1"):
 		with cd('/usr/local/lib'):
-			if not exists("hbase-1.0.0-bin.tar.gz"):
-				sudo("wget http://www.eu.apache.org/dist/hbase/stable/hbase-1.0.0-bin.tar.gz")
-			sudo("tar -xvf hbase-1.0.0-bin.tar.gz")
-			sudo("ln -s hbase-1.0.0 hbase")
+			if not exists("hbase-0.98.10.1-hadoop2-bin.tar.gz"):
+				sudo("wget http://www.apache.org/dist/hbase/hbase-0.98.10.1/hbase-0.98.10.1-hadoop2-bin.tar.gz")
+			sudo("tar -xvf hbase-0.98.10.1-hadoop2-bin.tar.gz")
+			sudo("ln -s hbase-0.98.10.1-hadoop2 hbase")
 	with cd("/usr/local/lib/hbase/conf"):
 		hbase_site_xml_content= """
 		<configuration>
@@ -60,15 +67,17 @@ def install_hbase():
 		"""
 		_replace_file_content("hbase-site.xml", hbase_site_xml_content)
 	with cd('/usr/local/lib'):
-		sudo("chown hadoop -R hbase-1.0.0")
-		sudo("chmod -R u+rw hbase-1.0.0")
+		sudo("chown hadoop -R hbase-0.98.10.1-hadoop2")
+		sudo("chmod -R u+rw hbase-0.98.10.1-hadoop2")
 	
 	if not contains("/home/hadoop/.bashrc", "/usr/local/lib/hbase/bin"):
 		append("/home/hadoop/.bashrc", "export PATH=$PATH:/usr/local/lib/hbase/bin", use_sudo=True)
 		
 	with settings(sudo_user='hadoop'):
-		sudo("/usr/local/lib/hbase/bin/local-master-backup.sh start 2 3", warn_only=True)
-		sudo("/usr/local/lib/hbase/bin/local-regionservers.sh start 2 3", warn_only=True)
+		sudo("/usr/local/lib/hbase/bin/start-hbase.sh", warn_only=True)
+		sudo("/usr/local/lib/hbase/bin/hbase-daemon.sh start thrift", warn_only=True)
+		#sudo("/usr/local/lib/hbase/bin/local-master-backup.sh start 2 3", warn_only=True)
+		#sudo("/usr/local/lib/hbase/bin/local-regionservers.sh start 2 3", warn_only=True)
 		
 	
 def install_hadoop():
@@ -182,13 +191,13 @@ def _create_hadoop_user():
 	if not exists("/home/hadoop/.ssh"):
 		sudo("mkdir -p /home/hadoop/.ssh")
 		sudo("chown -R hadoop /home/hadoop")
+	bash_login_content = """
+	if [ -f ~/.bashrc ]; then
+		. ~/.bashrc
+	fi
+	"""
+	_replace_file_content("/home/hadoop/.bash_login", bash_login_content)
 	with settings(sudo_user='hadoop'):
-		bash_login_content = """
-		if [ -f ~/.bashrc ]; then
-			. ~/.bashrc
-		fi
-		"""
-		_replace_file_content("/home/hadoop/.bash_login", bash_login_content)
 		if not exists('/home/hadoop/.ssh/id_rsa'):
 			sudo('ssh-keygen -t rsa -P "" -f /home/hadoop/.ssh/id_rsa')
 			sudo("cat /home/hadoop/.ssh/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys")
