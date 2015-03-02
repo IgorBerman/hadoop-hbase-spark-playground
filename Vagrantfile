@@ -21,10 +21,10 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
   config.vm.network :forwarded_port, guest: 8088, host: 8088   #hadoop
-  config.vm.network :forwarded_port, guest: 50070, host: 50070 #hadoop
-  config.vm.network :forwarded_port, guest: 50090, host: 50090 #hadoop
-  config.vm.network :forwarded_port, guest: 50075, host: 50075 #hadoop
-  config.vm.network :forwarded_port, guest: 16030, host: 16030 #hbase
+  config.vm.network :forwarded_port, guest: 50070, host: 50070 #hdfs
+  config.vm.network :forwarded_port, guest: 50090, host: 50090 #hadoop namenode status
+  config.vm.network :forwarded_port, guest: 50075, host: 50075 #hadoop data node status
+  config.vm.network :forwarded_port, guest: 60010, host: 60010 #hbase
   config.vm.network :forwarded_port, guest: 4040, host: 4040   #spark
   
  
