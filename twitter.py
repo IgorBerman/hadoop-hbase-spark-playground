@@ -17,10 +17,18 @@ class TweetsListener(StreamListener):
 	
 	def on_data(self, data):
 		tweet = json.loads(data)
-		print "\n\n\n-----------------------\n",tweet['id']," ",tweet['text']," ",tweet['timestamp_ms']," ",tweet['user']['id']
-		print ",".join(map(lambda hashtag: hashtag['text'], tweet['entities']['hashtags']))
-		text = tweet['text'].encode('ascii', 'ignore') if tweet['text'] else ''
-		self._table.put(tweet['id_str'], {'general:text': text, 'general:timestamp':tweet['timestamp_ms'], 'general:user_id':tweet['user']['id_str']})
+		if 'id' in tweet and 'text' in tweet and 'timestamp_ms' in tweet and 'user' in tweet:
+			print "\n\n\n-----------------------\n",tweet['id']," ",tweet['text']," ",tweet['timestamp_ms']," ",tweet['user']['id']
+			hashtags = ",".join(map(lambda hashtag: hashtag['text'].encode('ascii','ignore') if hashtag['text'] else '', tweet['entities']['hashtags']))
+			text = tweet['text'].encode('ascii', 'ignore') if tweet['text'] else ''
+			place = tweet['place']
+			country = place['country'].encode('ascii', 'ignore') if (place and 'country' in place) else ''
+			self._table.put(tweet['id_str'], {'general:text': text, 'general:timestamp':tweet['timestamp_ms'],\
+				'general:user_id':tweet['user']['id_str'], 'general:lang':tweet['lang'], 'general:country':country,\
+				'hashtags:':hashtags})
+		#e.g. delete messages
+		#else:
+		#	print "\n\n\n---------unexpected tweet format -------\n", tweet
 		return True
 
 	def on_error(self, status):
@@ -57,9 +65,10 @@ if __name__ == '__main__':
 	auth = OAuthHandler(args.conskey, args.conssecret)
 	auth.set_access_token(args.accesstoken, args.accesstokensecret)
 	stream = Stream(auth, l)
+	languages=["en", "es", "he"]
 	if args.filter:
 		print "going to track all tweets with %s" % args.filter
-		stream.filter(track=args.filter.split(","))
+		stream.filter(track=args.filter.split(","),languages=languages)
 	else:
 		print "going to sample random tweets"
-		stream.sample()
+		stream.sample(languages=languages)
