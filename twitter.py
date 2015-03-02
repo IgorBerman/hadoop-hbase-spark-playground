@@ -10,7 +10,6 @@ import happybase
 #http://adilmoujahid.com/posts/2014/07/twitter-analytics/
 #http://al333z.github.io/2015/02/28/TheDress/
 
-#This is a basic listener that just prints received tweets to stdout.
 class TweetsListener(StreamListener):
 	def __init__(self, tablename, conn):
 		self._conn = conn
@@ -34,7 +33,7 @@ def create_tweets_table(tablename, conn):
 			'general': dict(),  # use defaults
 			'hashtags':dict()
 		}
-		print 'creating tweets table'
+		print 'creating %s table' % tablename
 		conn.create_table(tablename, families)
 		
 if __name__ == '__main__':
@@ -47,14 +46,20 @@ if __name__ == '__main__':
 	parser.add_argument('-at', '--accesstoken', required=True)
 	parser.add_argument('-ats', '--accesstokensecret', required=True)
 	parser.add_argument('-t', '--table', required=True)
-	parser.add_argument('-f', '--filter', required=True)
+	parser.add_argument('-f', '--filter')
+	parser.add_argument('-b', '--hbase', default="localhost")
+	parser.add_argument('-p', '--hbaseport', type=int, default=9090)
 	args = parser.parse_args()
-	hbase_conn = happybase.Connection("localhost", 9090)
+	hbase_conn = happybase.Connection(args.hbase, args.hbaseport)
 	create_tweets_table(args.table, hbase_conn)
 	l = TweetsListener(args.table, hbase_conn)
 	
 	auth = OAuthHandler(args.conskey, args.conssecret)
 	auth.set_access_token(args.accesstoken, args.accesstokensecret)
 	stream = Stream(auth, l)
-	print "going to track all tweets with %s" % args.filter
-	stream.filter(track=args.filter.split(","))
+	if args.filter:
+		print "going to track all tweets with %s" % args.filter
+		stream.filter(track=args.filter.split(","))
+	else:
+		print "going to sample random tweets"
+		stream.sample()
