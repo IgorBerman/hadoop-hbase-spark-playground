@@ -11,6 +11,47 @@ import	StringIO
 def	provision(user="vagrant",	group="vagrant"):
 	install_java8()
 	install_hadoop()
+	install_hbase()
+	
+def install_hbase():
+	'''
+	http://hbase.apache.org/book.html#quickstart
+	'''
+	if not exists("/usr/local/lib/hbase-1.0.0"):
+		with cd('/usr/local/lib'):
+			if not exists("hbase-1.0.0-bin.tar.gz"):
+				sudo("wget http://www.eu.apache.org/dist/hbase/stable/hbase-1.0.0-bin.tar.gz")
+			sudo("tar -xvf hbase-1.0.0-bin.tar.gz")
+			sudo("ln -s hbase-1.0.0 hbase")
+	with cd("/usr/local/lib/hbase/conf"):
+		hbase_site_xml_content= """
+		<configuration>
+		<property>
+		  <name>hbase.rootdir</name>
+		  <value>hdfs://localhost:9000/hbase</value>
+		</property>
+		  <property>
+			<name>hbase.zookeeper.property.dataDir</name>
+			<value>/home/hadoop/zookeeper</value>
+		  </property>
+		  <property>
+			  <name>hbase.cluster.distributed</name>
+			  <value>true</value>
+   		  </property>
+		</configuration>
+		"""
+		_replace_file_content("hbase-site.xml", hbase_site_xml_content)
+	with cd('/usr/local/lib'):
+		sudo("chown hadoop -R hbase-1.0.0")
+		sudo("chmod -R u+rw hbase-1.0.0")
+	
+	if not contains("/home/hadoop/.bashrc", "/usr/local/lib/hbase/bin"):
+		append("/home/hadoop/.bashrc", "export PATH=$PATH:/usr/local/lib/hbase/bin", use_sudo=True)
+		
+	with settings(sudo_user='hadoop'):
+		sudo("/usr/local/lib/hbase/bin/local-master-backup.sh start 2 3", warn_only=True)
+		sudo("/usr/local/lib/hbase/bin/local-regionservers.sh start 2 3", warn_only=True)
+		
 	
 def install_hadoop():
 	'''
@@ -48,6 +89,7 @@ def _configure_hadoop():
 		export YARN_HOME=$HADOOP_HOME
 		export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
 		export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+		export HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=$HADOOP_COMMON_LIB_NATIVE_DIR"
 		"""
 		if not exists("/home/hadoop/.bashrc"):
 			sudo("touch /home/hadoop/.bashrc")
@@ -108,6 +150,7 @@ def _configure_hadoop():
 	with cd('/usr/local/lib'):
 		sudo("chown hadoop -R hadoop-2.6.0")
 		sudo("chmod -R u+rw hadoop-2.6.0")	
+		
 
 def _start_hadoop():
 	with settings(sudo_user='hadoop'):
