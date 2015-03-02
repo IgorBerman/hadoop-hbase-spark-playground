@@ -20,12 +20,12 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   # Create a forwarded port mapping which allows access to a specific port
   # within the machine from a port on the host machine. In the example below,
   # accessing "localhost:8080" will access port 80 on the guest machine.
-  config.vm.network :forwarded_port, guest: 8088, host: 8088
-  config.vm.network :forwarded_port, guest: 50070, host: 50070
-  config.vm.network :forwarded_port, guest: 50090, host: 50090
-  config.vm.network :forwarded_port, guest: 50075, host: 50075
-  config.vm.network :forwarded_port, guest: 16030, host: 16030
-  config.vm.network :forwarded_port, guest: 4040, host: 4040
+  config.vm.network :forwarded_port, guest: 8088, host: 8088   #hadoop
+  config.vm.network :forwarded_port, guest: 50070, host: 50070 #hadoop
+  config.vm.network :forwarded_port, guest: 50090, host: 50090 #hadoop
+  config.vm.network :forwarded_port, guest: 50075, host: 50075 #hadoop
+  config.vm.network :forwarded_port, guest: 16030, host: 16030 #hbase
+  config.vm.network :forwarded_port, guest: 4040, host: 4040   #spark
   
  
   # Create a private network, which allows host-only access to the machine
