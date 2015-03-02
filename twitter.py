@@ -12,9 +12,9 @@ import happybase
 
 #This is a basic listener that just prints received tweets to stdout.
 class TweetsListener(StreamListener):
-	def __init__(self, conn):
+	def __init__(self, tablename, conn):
 		self._conn = conn
-		self._table = conn.table('tweets')
+		self._table = conn.table(tablename)
 	
 	def on_data(self, data):
 		tweet = json.loads(data)
@@ -27,30 +27,31 @@ class TweetsListener(StreamListener):
 	def on_error(self, status):
 		print status
 
-def create_tweets_table(conn):
-	print 'checking if tweets table exists'
-	if 'tweets' not in conn.tables():
+def create_tweets_table(tablename, conn):
+	print 'checking if %s table exists' % tablename
+	if tablename not in conn.tables():
 		families = {
 			'general': dict(),  # use defaults
 			'hashtags':dict()
 		}
 		print 'creating tweets table'
-		conn.create_table('tweets', families)
+		conn.create_table(tablename, families)
 		
 if __name__ == '__main__':
 	'''
-	python /vagrant/twitter.py -ck <your-consumer-key> -cs <your-consumer-secret> -at <your-access-token> -ats <your access token secret> -f <comma-separated-list-of-words>
+	python /vagrant/twitter.py -ck <your-consumer-key> -cs <your-consumer-secret> -at <your-access-token> -ats <your access token secret> -t tweets -f <comma-separated-list-of-words>
 	'''
 	parser = argparse.ArgumentParser(description='Read tweets by filter.')
 	parser.add_argument('-ck', '--conskey', required=True)
 	parser.add_argument('-cs', '--conssecret', required=True)
 	parser.add_argument('-at', '--accesstoken', required=True)
 	parser.add_argument('-ats', '--accesstokensecret', required=True)
+	parser.add_argument('-t', '--table', required=True)
 	parser.add_argument('-f', '--filter', required=True)
 	args = parser.parse_args()
 	hbase_conn = happybase.Connection("localhost", 9090)
-	create_tweets_table(hbase_conn)
-	l = TweetsListener(hbase_conn)
+	create_tweets_table(args.table, hbase_conn)
+	l = TweetsListener(args.table, hbase_conn)
 	
 	auth = OAuthHandler(args.conskey, args.conssecret)
 	auth.set_access_token(args.accesstoken, args.accesstokensecret)
