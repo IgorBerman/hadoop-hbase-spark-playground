@@ -10,17 +10,18 @@ import	StringIO
 
 def	provision(user="vagrant",	group="vagrant"):
 	install_java8()
-	create_hadoop_user()
-	download_and_install_hadoop()
+	install_hadoop()
 	
-def _replace_file_content(fname, content):
-	fcontent = StringIO.StringIO()
-	fcontent.write(content)
-	sudo("rm -rf %s" % fname)
-	put(fcontent, fname, use_sudo=True)
-	fcontent.close()
+def install_hadoop():
+	'''
+	http://tecadmin.net/setup-hadoop-2-4-single-node-cluster-on-linux/
+	'''
+	_create_hadoop_user()
+	_download_hadoop()
+	_configure_hadoop()
+	_start_hadoop()
 	
-def download_and_install_hadoop():
+def _download_hadoop():
 	if not exists("/usr/local/lib/hadoop-2.6.0"):
 		with cd('/usr/local/lib'):
 			if not exists("hadoop-2.6.0.tar.gz"):
@@ -28,6 +29,14 @@ def download_and_install_hadoop():
 			sudo("tar -xvf hadoop-2.6.0.tar.gz")
 			sudo("ln -s hadoop-2.6.0 hadoop")
 
+def _replace_file_content(fname, content):
+	fcontent = StringIO.StringIO()
+	fcontent.write(content)
+	sudo("rm -rf %s" % fname)
+	put(fcontent, fname, use_sudo=True)
+	fcontent.close()
+
+def _configure_hadoop():
 	with settings(sudo_user='hadoop'):
 		hadoop_settings = """
 		export JAVA_HOME=/usr/lib/jvm/java-8-oracle
@@ -94,14 +103,18 @@ def download_and_install_hadoop():
 		</configuration>
 		"""
 		_replace_file_content("yarn-site.xml", yarn_site_xml_content)
-	run("/usr/local/lib/hadoop/bin/hdfs namenode -format -nonInteractive", warn_only=True)		
+	with settings(sudo_user='hadoop'):
+		sudo("/usr/local/lib/hadoop/bin/hdfs namenode -format -nonInteractive", warn_only=True)		
 	with cd('/usr/local/lib'):
 		sudo("chown hadoop -R hadoop-2.6.0")
-		sudo("chmod -R u+rw hadoop-2.6.0")
+		sudo("chmod -R u+rw hadoop-2.6.0")	
+
+def _start_hadoop():
 	with settings(sudo_user='hadoop'):
 		sudo("/usr/local/lib/hadoop/sbin/start-dfs.sh", warn_only=True)
+		sudo("/usr/local/lib/hadoop/sbin/start-yarn.sh", warn_only=True)
 	
-def create_hadoop_user():
+def _create_hadoop_user():
 	user_exists = run("id -u hadoop", warn_only=True)
 	if user_exists.return_code == 1:
 		sudo("useradd hadoop --password hadoop -d /home/hadoop -s /bin/bash")
@@ -113,8 +126,8 @@ def create_hadoop_user():
 			sudo('ssh-keygen -t rsa -P "" -f /home/hadoop/.ssh/id_rsa')
 			sudo("cat /home/hadoop/.ssh/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys")
 			sudo("chmod 0600 /home/hadoop/.ssh/authorized_keys")
-			sudo("ssh-keyscan -H localhost >> ~/.ssh/known_hosts")
-			sudo("ssh-keyscan -H 0.0.0.0 >> ~/.ssh/known_hosts")
+			sudo("ssh-keyscan -H localhost >> /home/hadoop/.ssh/known_hosts")
+			sudo("ssh-keyscan -H 0.0.0.0 >> /home/hadoop/.ssh/known_hosts")
 		
 	
 def	install_java8():
