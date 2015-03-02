@@ -12,6 +12,24 @@ def	provision(user="vagrant",	group="vagrant"):
 	install_java8()
 	install_hadoop()
 	install_hbase()
+	install_spark()
+	
+def install_spark():
+	'''
+	
+	'''
+	if not exists("/usr/local/lib/spark"):
+		with cd('/usr/local/lib'):
+			if not exists("spark-1.2.1-bin-hadoop2.4.tgz"):
+				sudo("wget http://www.eu.apache.org/dist/spark/spark-1.2.1/spark-1.2.1-bin-hadoop2.4.tgz")
+			sudo("tar -xvf spark-1.2.1-bin-hadoop2.4.tgz")
+			sudo("ln -s spark-1.2.1-bin-hadoop2.4 spark")
+	with cd('/usr/local/lib'):
+		sudo("chown hadoop -R spark-1.2.1-bin-hadoop2.4")
+		sudo("chmod -R u+rw spark-1.2.1-bin-hadoop2.4")
+	
+	if not contains("/home/hadoop/.bashrc", "/usr/local/lib/spark/bin"):
+		append("/home/hadoop/.bashrc", "export PATH=$PATH:/usr/local/lib/spark/bin", use_sudo=True)
 	
 def install_hbase():
 	'''
@@ -165,6 +183,12 @@ def _create_hadoop_user():
 		sudo("mkdir -p /home/hadoop/.ssh")
 		sudo("chown -R hadoop /home/hadoop")
 	with settings(sudo_user='hadoop'):
+		bash_login_content = """
+		if [ -f ~/.bashrc ]; then
+			. ~/.bashrc
+		fi
+		"""
+		_replace_file_content("/home/hadoop/.bash_login", bash_login_content)
 		if not exists('/home/hadoop/.ssh/id_rsa'):
 			sudo('ssh-keygen -t rsa -P "" -f /home/hadoop/.ssh/id_rsa')
 			sudo("cat /home/hadoop/.ssh/id_rsa.pub >> /home/hadoop/.ssh/authorized_keys")
