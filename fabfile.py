@@ -40,7 +40,7 @@ def	provision():
 	install_python_modules()
 	start_all()
 	
-def start_all()
+def start_all():
 	with settings(sudo_user='hadoop'):
 		sudo("/usr/local/lib/hadoop/sbin/start-dfs.sh", warn_only=True)
 		sudo("/usr/local/lib/hadoop/sbin/start-yarn.sh", warn_only=True)
