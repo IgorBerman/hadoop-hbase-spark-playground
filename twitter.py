@@ -6,7 +6,7 @@ from tweepy import OAuthHandler
 from tweepy import Stream
 import json
 import happybase
-
+from requests.packages.urllib3.exceptions import ReadTimeoutError
 #http://adilmoujahid.com/posts/2014/07/twitter-analytics/
 #http://al333z.github.io/2015/02/28/TheDress/
 
@@ -66,9 +66,15 @@ if __name__ == '__main__':
 	auth.set_access_token(args.accesstoken, args.accesstokensecret)
 	stream = Stream(auth, l)
 	languages=["en", "es", "he"]
-	if args.filter:
-		print "going to track all tweets with %s" % args.filter
-		stream.filter(track=args.filter.split(","),languages=languages)
-	else:
-		print "going to sample random tweets"
-		stream.sample(languages=languages)
+	while(True):
+		try:
+			
+			if args.filter:
+				print "going to track all tweets with %s" % args.filter
+				stream.filter(track=args.filter.split(","),languages=languages)
+			else:
+				print "going to sample random tweets"
+				stream.sample(languages=languages)
+		except ReadTimeoutError:
+			print 'Read timeout...'
+			continue

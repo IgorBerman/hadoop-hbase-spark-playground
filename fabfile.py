@@ -6,14 +6,48 @@ from fabric.operations import *
 from	fabric.api	import	*
 import	os
 import	StringIO
-#fab	-D	-H	192.168.33.11	-u	vagrant	-i	.vagrant/machines/default/virtualbox/private_key	install_supervisor
+#fab	-D	-H	192.168.33.11	-u	vagrant	-i	.vagrant/machines/default/virtualbox/private_key	provision
 
-def	provision(user="vagrant",	group="vagrant"):
+
+APP_USER_SETTINGS = """
+export JAVA_HOME=/usr/lib/jvm/java-8-oracle
+export HADOOP_HOME=/usr/local/lib/hadoop
+export HADOOP_INSTALL=$HADOOP_HOME
+export HADOOP_MAPRED_HOME=$HADOOP_HOME
+export HADOOP_COMMON_HOME=$HADOOP_HOME
+export HADOOP_HDFS_HOME=$HADOOP_HOME
+export YARN_HOME=$HADOOP_HOME
+export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
+export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
+export HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=$HADOOP_COMMON_LIB_NATIVE_DIR"
+export PATH=$PATH:/usr/local/lib/hbase/bin
+export IPYTHON=1
+export MAVEN_OPTS="-Xmx2g -XX:MaxPermSize=512M -XX:ReservedCodeCacheSize=512m"
+export PATH=$PATH:/usr/local/lib/spark/bin
+export SPARK_SUBMIT_LIBRARY_PATH=/usr/local/lib/hadoop/lib/native
+export SPARK_SUBMIT_CLASSPATH=/usr/local/lib/spark/examples/target/spark-examples_2.10-1.2.1.jar
+export HB_LIB=/usr/local/lib/hbase/lib
+export SPARK_SUBMIT_CLASSPATH=$SPARK_SUBMIT_CLASSPATH:$HB_LIB/hbase-prefix-tree-0.98.10.1-hadoop2.jar:$HB_LIB/hbase-protocol-0.98.10.1-hadoop2.jar:$HB_LIB/hbase-client-0.98.10.1-hadoop2.jar:$HB_LIB/hbase-common-0.98.10.1-hadoop2.jar:$HB_LIB/hbase-it-0.98.10.1-hadoop2.jar
+export SPARK_SUBMIT_CLASSPATH=$SPARK_SUBMIT_CLASSPATH:$HB_LIB/hbase-server-0.98.10.1-hadoop2.jar:$HB_LIB/hbase-common-0.98.10.1-hadoop2.jar:$HB_LIB/htrace-core-2.04.jar:$HB_LIB/guava-12.0.1.jar
+"""
+
+def	provision():
 	install_java8()
+	create_app_user()
 	install_hadoop()
 	install_hbase()
 	install_spark()
 	install_python_modules()
+	start_all()
+	
+def start_all()
+	with settings(sudo_user='hadoop'):
+		sudo("/usr/local/lib/hadoop/sbin/start-dfs.sh", warn_only=True)
+		sudo("/usr/local/lib/hadoop/sbin/start-yarn.sh", warn_only=True)
+		sudo("/usr/local/lib/hbase/bin/start-hbase.sh", warn_only=True)
+		sudo("/usr/local/lib/hbase/bin/hbase-daemon.sh start thrift", warn_only=True)
+		#sudo("/usr/local/lib/hbase/bin/local-master-backup.sh start 2 3", warn_only=True)
+		#sudo("/usr/local/lib/hbase/bin/local-regionservers.sh start 2 3", warn_only=True)
 	
 def install_python_modules():
 	sudo("apt-get install -y python-pip")
@@ -22,27 +56,24 @@ def install_python_modules():
 	sudo("pip install happybase")	
 	
 def install_spark():
-	'''
-	
-	'''
-	if not exists("/usr/local/lib/spark"):
+	sudo("apt-get install -y maven")
+	if not exists("/usr/local/lib/spark-1.2.1"):
 		with cd('/usr/local/lib'):
-			if not exists("spark-1.2.1-bin-hadoop2.4.tgz"):
-				sudo("wget http://www.eu.apache.org/dist/spark/spark-1.2.1/spark-1.2.1-bin-hadoop2.4.tgz")
-			sudo("tar -xvf spark-1.2.1-bin-hadoop2.4.tgz")
-			sudo("ln -s spark-1.2.1-bin-hadoop2.4 spark")
+			if not exists("spark-1.2.1.tgz"):
+				sudo("wget http://www.eu.apache.org/dist/spark/spark-1.2.1/spark-1.2.1.tgz")
+			sudo("tar -xvf spark-1.2.1.tgz")
+			sudo("ln -s spark-1.2.1 spark")
+	with cd('/usr/local/lib/spark'):
+		sudo('sudo mvn package -Pyarn -Dyarn.version=2.6.0 -Phadoop-2.4 -Dhadoop.version=2.6.0 -Phive -DskipTests')
 	with cd('/usr/local/lib'):
-		sudo("chown hadoop -R spark-1.2.1-bin-hadoop2.4")
-		sudo("chmod -R u+rw spark-1.2.1-bin-hadoop2.4")
-	
-	if not contains("/home/hadoop/.bashrc", "/usr/local/lib/spark/bin"):
-		append("/home/hadoop/.bashrc", "export PATH=$PATH:/usr/local/lib/spark/bin", use_sudo=True)
+		sudo("chown hadoop -R spark-1.2.1")
+		sudo("chmod -R u+rw spark-1.2.1")
 	
 def install_hbase():
 	'''
 	http://hbase.apache.org/book.html#quickstart
 	'''
-	if not exists("/usr/local/lib/hbase-0.98.10.1"):
+	if not exists("/usr/local/lib/hbase-0.98.10.1-hadoop2"):
 		with cd('/usr/local/lib'):
 			if not exists("hbase-0.98.10.1-hadoop2-bin.tar.gz"):
 				sudo("wget http://www.apache.org/dist/hbase/hbase-0.98.10.1/hbase-0.98.10.1-hadoop2-bin.tar.gz")
@@ -69,17 +100,7 @@ def install_hbase():
 	with cd('/usr/local/lib'):
 		sudo("chown hadoop -R hbase-0.98.10.1-hadoop2")
 		sudo("chmod -R u+rw hbase-0.98.10.1-hadoop2")
-	
-	if not contains("/home/hadoop/.bashrc", "/usr/local/lib/hbase/bin"):
-		append("/home/hadoop/.bashrc", "export PATH=$PATH:/usr/local/lib/hbase/bin", use_sudo=True)
-		
-	with settings(sudo_user='hadoop'):
-		sudo("/usr/local/lib/hbase/bin/start-hbase.sh", warn_only=True)
-		sudo("/usr/local/lib/hbase/bin/hbase-daemon.sh start thrift", warn_only=True)
-		#sudo("/usr/local/lib/hbase/bin/local-master-backup.sh start 2 3", warn_only=True)
-		#sudo("/usr/local/lib/hbase/bin/local-regionservers.sh start 2 3", warn_only=True)
-		
-	
+
 def install_hadoop():
 	'''
 	http://tecadmin.net/setup-hadoop-2-4-single-node-cluster-on-linux/
@@ -87,7 +108,6 @@ def install_hadoop():
 	_create_hadoop_user()
 	_download_hadoop()
 	_configure_hadoop()
-	_start_hadoop()
 	
 def _download_hadoop():
 	if not exists("/usr/local/lib/hadoop-2.6.0"):
@@ -105,23 +125,6 @@ def _replace_file_content(fname, content):
 	fcontent.close()
 
 def _configure_hadoop():
-	with settings(sudo_user='hadoop'):
-		hadoop_settings = """
-		export JAVA_HOME=/usr/lib/jvm/java-8-oracle
-		export HADOOP_HOME=/usr/local/lib/hadoop
-		export HADOOP_INSTALL=$HADOOP_HOME
-		export HADOOP_MAPRED_HOME=$HADOOP_HOME
-		export HADOOP_COMMON_HOME=$HADOOP_HOME
-		export HADOOP_HDFS_HOME=$HADOOP_HOME
-		export YARN_HOME=$HADOOP_HOME
-		export HADOOP_COMMON_LIB_NATIVE_DIR=$HADOOP_HOME/lib/native
-		export PATH=$PATH:$HADOOP_HOME/sbin:$HADOOP_HOME/bin
-		export HADOOP_OPTS="$HADOOP_OPTS -Djava.library.path=$HADOOP_COMMON_LIB_NATIVE_DIR"
-		"""
-		if not exists("/home/hadoop/.bashrc"):
-			sudo("touch /home/hadoop/.bashrc")
-		if not contains("/home/hadoop/.bashrc", "export HADOOP_HOME=/usr/local/lib/hadoop"):
-			append("/home/hadoop/.bashrc", hadoop_settings, use_sudo=True)
 	with cd("/usr/local/lib/hadoop/etc/hadoop"):
 		core_site_xml_content= """
 		<configuration>
@@ -176,15 +179,10 @@ def _configure_hadoop():
 		sudo("/usr/local/lib/hadoop/bin/hdfs namenode -format -nonInteractive", warn_only=True)		
 	with cd('/usr/local/lib'):
 		sudo("chown hadoop -R hadoop-2.6.0")
-		sudo("chmod -R u+rw hadoop-2.6.0")	
-		
+		sudo("chmod -R u+rw hadoop-2.6.0")
 
-def _start_hadoop():
-	with settings(sudo_user='hadoop'):
-		sudo("/usr/local/lib/hadoop/sbin/start-dfs.sh", warn_only=True)
-		sudo("/usr/local/lib/hadoop/sbin/start-yarn.sh", warn_only=True)
 	
-def _create_hadoop_user():
+def create_app_user():
 	user_exists = run("id -u hadoop", warn_only=True)
 	if user_exists.return_code == 1:
 		sudo("useradd hadoop --password hadoop -d /home/hadoop -s /bin/bash")
@@ -204,6 +202,11 @@ def _create_hadoop_user():
 			sudo("chmod 0600 /home/hadoop/.ssh/authorized_keys")
 			sudo("ssh-keyscan -H localhost >> /home/hadoop/.ssh/known_hosts")
 			sudo("ssh-keyscan -H 0.0.0.0 >> /home/hadoop/.ssh/known_hosts")
+			
+		if not exists("/home/hadoop/.bashrc"):
+			sudo("touch /home/hadoop/.bashrc")
+		if not contains("/home/hadoop/.bashrc", "export HADOOP_HOME=/usr/local/lib/hadoop"):
+			append("/home/hadoop/.bashrc", APP_USER_SETTINGS, use_sudo=True)
 		
 	
 def	install_java8():
