@@ -51,6 +51,7 @@ def start_all():
 	
 def install_python_modules():
 	sudo("apt-get install -y python-pip")
+	sudo("easy_install -U pip")
 	sudo("pip install ipython")
 	sudo("pip install tweepy")
 	sudo("pip install happybase")	
@@ -105,7 +106,6 @@ def install_hadoop():
 	'''
 	http://tecadmin.net/setup-hadoop-2-4-single-node-cluster-on-linux/
 	'''
-	_create_hadoop_user()
 	_download_hadoop()
 	_configure_hadoop()
 	
